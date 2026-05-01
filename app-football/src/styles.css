@@ -519,6 +519,12 @@ button:disabled {
   gap: 10px;
 }
 
+.status-panel__value {
+  max-width: min(100%, 320px);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 .rubric-grid,
 .platform-grid {
   display: grid;

@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { newsItems, newsSources } from "../data/mocks";
 
 export function HomePage() {
-  const { authDate, user } = useAuth();
+  const { apiBaseUrl, authDate, initDataPresent, status, user } = useAuth();
   const activeSources = newsSources.filter((source) => source.isActive);
   const latestSync = activeSources[0]?.lastSyncedAt ?? "n/a";
 
@@ -36,6 +36,32 @@ export function HomePage() {
           <div className="metric">
             <span className="metric__label">Последний sync</span>
             <strong className="metric__value">{latestSync}</strong>
+          </div>
+        </div>
+
+        <div className="status-panel">
+          <div className="surface__header">
+            <div>
+              <h3 className="section-title">Debug</h3>
+              <p className="muted">Текущее состояние auth и backend URL, зашитые в сборку.</p>
+            </div>
+          </div>
+
+          <div className="status-panel__row">
+            <span>API base URL</span>
+            <strong className="status-panel__value">{apiBaseUrl || "missing"}</strong>
+          </div>
+          <div className="status-panel__row">
+            <span>Telegram initData</span>
+            <strong>{initDataPresent ? "present" : "missing"}</strong>
+          </div>
+          <div className="status-panel__row">
+            <span>Auth status</span>
+            <strong>{status}</strong>
+          </div>
+          <div className="status-panel__row">
+            <span>Owner</span>
+            <strong>{user?.username ? `@${user.username}` : user?.id ?? "n/a"}</strong>
           </div>
         </div>
       </section>
