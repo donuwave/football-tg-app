@@ -15,3 +15,7 @@ Frontend Telegram Mini App.
 
 ## Ближайший этап
 Сначала frontend собирается на моках, затем подключается к backend API `/api/v1`.
+
+## Runtime env
+- `VITE_API_BASE_URL` — публичный URL backend API
+- `VITE_ENABLE_DEV_AUTH_BYPASS=true` — опциональный локальный bypass, чтобы не блокировать разработку вне Telegram

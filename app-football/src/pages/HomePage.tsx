@@ -1,8 +1,10 @@
 import { ChevronRight, Film, Newspaper, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import { newsItems, newsSources } from "../data/mocks";
 
 export function HomePage() {
+  const { authDate, user } = useAuth();
   const activeSources = newsSources.filter((source) => source.isActive);
   const latestSync = activeSources[0]?.lastSyncedAt ?? "n/a";
 
@@ -14,6 +16,10 @@ export function HomePage() {
             <h2 className="section-title">Рабочая панель</h2>
             <p className="muted">
               Один канал. Один контур публикации. Два основных сценария.
+            </p>
+            <p className="muted">
+              owner: {user?.username ? `@${user.username}` : user?.id} • auth:{" "}
+              {authDate ? new Date(authDate).toLocaleString("ru-RU") : "n/a"}
             </p>
           </div>
         </div>

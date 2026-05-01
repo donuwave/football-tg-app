@@ -1,5 +1,6 @@
 import { Clock3, Film, Home, Newspaper, ShieldCheck } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 
 const routeTitles: Record<string, string> = {
   "/": "Football TG",
@@ -22,6 +23,8 @@ function getPageTitle(pathname: string) {
 export function AppShell() {
   const location = useLocation();
   const pageTitle = getPageTitle(location.pathname);
+  const { user } = useAuth();
+  const userLabel = user?.username ? `@${user.username}` : `id ${user?.id ?? "n/a"}`;
 
   return (
     <div className="app-shell">
@@ -36,7 +39,7 @@ export function AppShell() {
           <div className="status-cluster">
             <span className="pill pill--neutral">
               <ShieldCheck size={14} />
-              1 owner
+              {userLabel}
             </span>
             <span className="pill pill--neutral">
               <Clock3 size={14} />
