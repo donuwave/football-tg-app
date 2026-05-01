@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+
+app-football/node_modules/
+app-football/dist/
+app-football/*.tsbuildinfo
+app-football/vite.config.js
+app-football/vite.config.d.ts

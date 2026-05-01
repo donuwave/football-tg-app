@@ -1,31 +1,45 @@
-# Football TG Content Tool (MVP)
+# Football TG Publishing Tool (MVP)
 
-Инструмент для подготовки и публикации контента в футбольный Telegram-канал через Telegram Mini App.
+Инструмент для одного владельца футбольного Telegram-канала с Telegram Mini App интерфейсом.
 
-## Stack
-- Frontend: React + Vite (Telegram Mini App)
-- Backend: FastAPI
-- DB: PostgreSQL
-- Queue: Redis + Celery
-- Workers: parser / ai / publisher
-- Storage: local (MVP), абстракция под S3
-- Video processing: FFmpeg (подготовлено на уровне архитектуры)
+## Что входит в MVP
+### 1. Новости
+- Автосбор новостей по расписанию раз в 2 часа.
+- Единая новостная лента в Mini App.
+- AI-шаблон для быстрого превращения новости в текст поста.
+- Публикация выбранной новости в Telegram-канал.
+
+### 2. Рубрика
+- Отдельная форма ручной публикации.
+- 4 поля:
+  - видео для Telegram,
+  - текст поста для Telegram,
+  - short-видео для VK и YouTube,
+  - описание для VK и YouTube.
+- Одна кнопка `Опубликовать`, которая запускает публикацию сразу в Telegram, VK и YouTube.
+
+## Архитектурные решения
+- Один владелец (`TELEGRAM_ALLOWED_USER_ID`).
+- Один Telegram-канал (`TELEGRAM_CHANNEL_ID`).
+- Валидация Telegram Mini App `initData` по официальной схеме Telegram.
+- Источники разных типов (`rss`, `x`, `website`, ...) описываются как отдельные записи в БД.
+- Один adapter обслуживает много источников одного типа.
+- Кросс-источниковой дедупликации в MVP нет.
+- Идемпотентность сохраняется внутри одного источника.
+- Видео не хранится как долговременный медиакаталог: используется временная рабочая директория для upload/processing/publish pipeline.
+
+## Текущий статус репозитория
+Сейчас репозиторий находится в стадии согласования архитектуры и UX. В нём уже зафиксированы продуктовые решения и структура сервисов, но runnable-код ещё не собран.
+
+`docker-compose.yml` в корне отражает целевую топологию сервисов, а не готовую к запуску инсталляцию.
 
 ## Структура
-- `app-football/` — frontend Mini App
-- `backend-football/` — FastAPI + Celery + Alembic
-- `parsers-football/` — место для отдельных parser-инстансов/конфигов
-- `docs/` — документация и этапы работ
+- `app-football/` — frontend Telegram Mini App
+- `backend-football/` — backend API, scheduler, workers
+- `ai-service/` — локальная модель и инструкция по запуску
+- `docs/` — спецификация, этапы реализации и деплой
 
-## Быстрый старт (Docker)
-1. Скопируйте `.env.example` в `.env` и заполните значения.
-2. Запустите:
-   - `docker compose up --build`
-3. Сервисы:
-   - API: `http://localhost:8000`
-   - Frontend: `http://localhost:5173`
-   - Postgres: `localhost:5432`
-   - Redis: `localhost:6379`
-
-Подробности по этапам: `docs/IMPLEMENTATION_PLAN.md`.
-
+## Документация
+- [PROJECT_SPEC](./docs/PROJECT_SPEC.md) — продуктовая и техническая спецификация MVP
+- [IMPLEMENTATION_PLAN](./docs/IMPLEMENTATION_PLAN.md) — этапы реализации
+- [DEPLOYMENT](./docs/DEPLOYMENT.md) — целевая схема деплоя после появления кода
