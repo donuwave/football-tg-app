@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
-from app.db.models.enums import NewsSourceSyncStatus, NewsSourceType
+from app.db.models.enums import NewsSourceSyncStatus, NewsSourceType, enum_values
 
 
 class NewsSource(Base):
@@ -15,7 +15,12 @@ class NewsSource(Base):
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     source_type: Mapped[NewsSourceType] = mapped_column(
-        Enum(NewsSourceType, name="news_source_type"),
+        Enum(
+            NewsSourceType,
+            name="news_source_type",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
     )
     base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -24,7 +29,12 @@ class NewsSource(Base):
     adapter_config: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_sync_status: Mapped[NewsSourceSyncStatus] = mapped_column(
-        Enum(NewsSourceSyncStatus, name="news_source_sync_status"),
+        Enum(
+            NewsSourceSyncStatus,
+            name="news_source_sync_status",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
         default=NewsSourceSyncStatus.NEVER_RUN,
     )

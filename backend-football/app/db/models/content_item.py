@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
-from app.db.models.enums import ContentItemStatus
+from app.db.models.enums import ContentItemStatus, enum_values
 
 
 class ContentItem(Base):
@@ -47,7 +47,12 @@ class ContentItem(Base):
     author_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[ContentItemStatus] = mapped_column(
-        Enum(ContentItemStatus, name="content_item_status"),
+        Enum(
+            ContentItemStatus,
+            name="content_item_status",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
         default=ContentItemStatus.NEW,
     )

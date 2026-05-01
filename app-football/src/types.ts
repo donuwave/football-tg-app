@@ -13,18 +13,19 @@ export interface NewsSource {
   id: string;
   name: string;
   sourceType: SourceType;
-  externalRef: string;
+  externalRef: string | null;
   isActive: boolean;
-  lastSyncedAt: string;
+  lastSyncedAt: string | null;
 }
 
 export interface NewsItem {
   id: string;
   sourceId: string;
   title: string;
-  excerpt: string;
+  excerpt: string | null;
   rawText: string;
-  publishedAt: string;
-  imageHint: string;
-  aiSuggestion: string;
+  publishedAt: string | null;
+  status: string;
+  imageHint: string | null;
+  source: NewsSource;
 }

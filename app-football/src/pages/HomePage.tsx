@@ -1,12 +1,18 @@
 import { ChevronRight, Film, Newspaper, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { newsItems, newsSources } from "../data/mocks";
+import { useNewsFeed } from "../features/news/useNewsFeed";
+import { formatDateTime } from "../lib/date";
 
 export function HomePage() {
   const { apiBaseUrl, authDate, initDataPresent, status, user } = useAuth();
-  const activeSources = newsSources.filter((source) => source.isActive);
-  const latestSync = activeSources[0]?.lastSyncedAt ?? "n/a";
+  const { errorMessage, items, sources, status: feedStatus } = useNewsFeed();
+  const activeSources = sources.filter((source) => source.isActive);
+  const latestSync =
+    activeSources
+      .map((source) => source.lastSyncedAt)
+      .filter((value): value is string => Boolean(value))
+      .sort((left, right) => right.localeCompare(left))[0] ?? null;
 
   return (
     <div className="stack-lg">
@@ -21,21 +27,26 @@ export function HomePage() {
               owner: {user?.username ? `@${user.username}` : user?.id} • auth:{" "}
               {authDate ? new Date(authDate).toLocaleString("ru-RU") : "n/a"}
             </p>
+            {feedStatus === "error" ? <p className="error-text">{errorMessage}</p> : null}
           </div>
         </div>
 
         <div className="hero-metrics">
           <div className="metric">
             <span className="metric__label">Источников</span>
-            <strong className="metric__value">{activeSources.length}</strong>
+            <strong className="metric__value">
+              {feedStatus === "loading" ? "..." : activeSources.length}
+            </strong>
           </div>
           <div className="metric">
             <span className="metric__label">Материалов</span>
-            <strong className="metric__value">{newsItems.length}</strong>
+            <strong className="metric__value">
+              {feedStatus === "loading" ? "..." : items.length}
+            </strong>
           </div>
           <div className="metric">
             <span className="metric__label">Последний sync</span>
-            <strong className="metric__value">{latestSync}</strong>
+            <strong className="metric__value">{formatDateTime(latestSync)}</strong>
           </div>
         </div>
 
@@ -80,8 +91,10 @@ export function HomePage() {
               Лента, генерация текста и публикация выбранной новости в Telegram.
             </p>
             <div className="feature-tile__meta">
-              <span>{newsItems.length} карточки</span>
-              <span>{activeSources.length} active sources</span>
+              <span>{feedStatus === "loading" ? "..." : items.length} карточки</span>
+              <span>
+                {feedStatus === "loading" ? "..." : activeSources.length} active sources
+              </span>
             </div>
           </div>
         </Link>
@@ -115,6 +128,7 @@ export function HomePage() {
         </div>
 
         <div className="source-list">
+          {feedStatus === "loading" ? <p className="muted">Загрузка источников...</p> : null}
           {activeSources.map((source) => (
             <div className="source-row" key={source.id}>
               <div className="source-row__lead">
@@ -128,7 +142,9 @@ export function HomePage() {
                   </p>
                 </div>
               </div>
-              <span className="pill pill--neutral">sync {source.lastSyncedAt}</span>
+              <span className="pill pill--neutral">
+                sync {formatDateTime(source.lastSyncedAt)}
+              </span>
             </div>
           ))}
         </div>

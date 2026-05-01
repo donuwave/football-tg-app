@@ -6,7 +6,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
-from app.db.models.enums import PublicationJobStatus, PublicationJobType, PublicationPlatform
+from app.db.models.enums import (
+    PublicationJobStatus,
+    PublicationJobType,
+    PublicationPlatform,
+    enum_values,
+)
 
 
 class PublicationJob(Base):
@@ -23,15 +28,30 @@ class PublicationJob(Base):
         nullable=False,
     )
     platform: Mapped[PublicationPlatform] = mapped_column(
-        Enum(PublicationPlatform, name="publication_platform"),
+        Enum(
+            PublicationPlatform,
+            name="publication_platform",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
     )
     job_type: Mapped[PublicationJobType] = mapped_column(
-        Enum(PublicationJobType, name="publication_job_type"),
+        Enum(
+            PublicationJobType,
+            name="publication_job_type",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
     )
     status: Mapped[PublicationJobStatus] = mapped_column(
-        Enum(PublicationJobStatus, name="publication_job_status"),
+        Enum(
+            PublicationJobStatus,
+            name="publication_job_status",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
         default=PublicationJobStatus.QUEUED,
     )

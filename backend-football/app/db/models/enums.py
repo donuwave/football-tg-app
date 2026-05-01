@@ -49,3 +49,7 @@ class PublicationJobStatus(str, Enum):
     PROCESSING = "processing"
     PUBLISHED = "published"
     FAILED = "failed"
+
+
+def enum_values(enum_class: type[Enum]) -> list[str]:
+    return [item.value for item in enum_class]

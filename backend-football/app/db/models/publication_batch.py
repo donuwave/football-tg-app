@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
-from app.db.models.enums import PublicationBatchStatus, PublicationBatchType
+from app.db.models.enums import PublicationBatchStatus, PublicationBatchType, enum_values
 
 
 class PublicationBatch(Base):
@@ -17,11 +17,21 @@ class PublicationBatch(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     batch_type: Mapped[PublicationBatchType] = mapped_column(
-        Enum(PublicationBatchType, name="publication_batch_type"),
+        Enum(
+            PublicationBatchType,
+            name="publication_batch_type",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
     )
     status: Mapped[PublicationBatchStatus] = mapped_column(
-        Enum(PublicationBatchStatus, name="publication_batch_status"),
+        Enum(
+            PublicationBatchStatus,
+            name="publication_batch_status",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         nullable=False,
         default=PublicationBatchStatus.QUEUED,
     )
