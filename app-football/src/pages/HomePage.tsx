@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useNewsFeed } from "../features/news/useNewsFeed";
 import { useSources } from "../features/news/useSources";
+import { sourcePresets } from "../features/news/sourcePresets";
 import { formatDateTime } from "../lib/date";
 
 const sourceTypeLabels = {
@@ -59,6 +60,7 @@ export function HomePage() {
   const [formStatus, setFormStatus] = useState<"idle" | "saving">("idle");
   const [syncState, setSyncState] = useState<Record<string, boolean>>({});
   const [toggleState, setToggleState] = useState<Record<string, boolean>>({});
+  const [presetState, setPresetState] = useState<Record<string, boolean>>({});
   const [lastSyncSummary, setLastSyncSummary] = useState("");
   const activeSources = useMemo(
     () => sources.filter((source) => source.isActive),
@@ -127,6 +129,33 @@ export function HomePage() {
       );
     } finally {
       setToggleState((current) => ({ ...current, [sourceId]: false }));
+    }
+  }
+
+  async function handleAddPreset(presetName: string) {
+    const preset = sourcePresets.find((item) => item.name === presetName);
+    if (!preset || !preset.feedUrl || preset.status !== "ready") {
+      return;
+    }
+
+    setFormError("");
+    setLastSyncSummary("");
+    setPresetState((current) => ({ ...current, [preset.name]: true }));
+
+    try {
+      await create({
+        name: preset.name,
+        feedUrl: preset.feedUrl,
+        externalRef: preset.externalRef
+      });
+      await refreshSources();
+      await refreshFeed();
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : "Не удалось добавить preset-источник."
+      );
+    } finally {
+      setPresetState((current) => ({ ...current, [preset.name]: false }));
     }
   }
 
@@ -320,6 +349,60 @@ export function HomePage() {
 
         {formError ? <p className="error-text">{formError}</p> : null}
         {lastSyncSummary ? <p className="success-text">{lastSyncSummary}</p> : null}
+
+        <div className="stack-sm">
+          <div>
+            <h3 className="section-title">Быстрые пресеты</h3>
+            <p className="muted">
+              Из твоего списка сейчас без нового адаптера подтверждён только один рабочий RSS.
+            </p>
+          </div>
+          <div className="source-list">
+            {sourcePresets.map((preset) => {
+              const isReady = preset.status === "ready" && Boolean(preset.feedUrl);
+              const isSaving = presetState[preset.name] ?? false;
+
+              return (
+                <div className="source-card" key={preset.name}>
+                  <div className="source-card__main">
+                    <div className="stack-sm">
+                      <div className="source-card__title-row">
+                        <strong>{preset.name}</strong>
+                        <span
+                          className={`pill ${isReady ? "pill--success" : "pill--neutral"}`}
+                        >
+                          {isReady ? "Готов" : "Нужен адаптер"}
+                        </span>
+                      </div>
+                      <p className="muted">{preset.note}</p>
+                      <p className="muted">
+                        Тип: {sourceTypeLabels[preset.sourceType]} • ref: {preset.externalRef}
+                      </p>
+                      {preset.feedUrl ? (
+                        <p className="muted">Feed: {preset.feedUrl}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="source-card__actions">
+                    <button
+                      className="button button--secondary"
+                      disabled={!isReady || isSaving}
+                      onClick={() => void handleAddPreset(preset.name)}
+                      type="button"
+                    >
+                      {isSaving ? (
+                        <LoaderCircle className="spin" size={16} />
+                      ) : (
+                        <Radio size={16} />
+                      )}
+                      {isReady ? "Добавить" : "Позже"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="source-list">
           {sourcesStatus === "loading" ? <p className="muted">Загрузка источников...</p> : null}

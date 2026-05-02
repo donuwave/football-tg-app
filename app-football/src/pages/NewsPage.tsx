@@ -92,7 +92,7 @@ export function NewsPage() {
   const currentDraft = selectedNews ? drafts[selectedNews.id] ?? "" : "";
   const currentInstruction = selectedNews
     ? instructions[selectedNews.id] ??
-      "Сделай краткий факт для Telegram: 1-2 предложения, без эмодзи, нейтрально, не в форме призыва, только главный факт."
+      "Сделай короткий пост для Telegram: без эмодзи, нейтрально, не в форме призыва. Вытащи главный крючок новости. Если нужен контекст или цитата, можно 2-4 предложения."
     : "";
   const currentStatus: PublishStatus = selectedNews
     ? publishState[selectedNews.id] ??
@@ -436,7 +436,7 @@ export function NewsPage() {
                     [selectedNews.id]: event.target.value
                   }))
                 }
-                placeholder="Например: сделай очень короткий нейтральный факт без эмодзи, не в форме призыва, с акцентом на главный инсайд."
+                placeholder="Например: сделай короткий нейтральный пост без эмодзи, вытащи главный крючок новости и, если уместно, добавь сильную цитату."
                 value={currentInstruction}
               />
             </label>

@@ -24,11 +24,11 @@ def append_channel_link(*, text: str, settings: Settings) -> str:
     if not normalized_text:
         return normalized_text
 
-    channel_url = _resolve_channel_url(settings=settings)
-    if not channel_url or channel_url in normalized_text:
+    channel_reference = _resolve_channel_reference(settings=settings)
+    if not channel_reference or channel_reference in normalized_text:
         return normalized_text
 
-    footer = f"Подписаться: {channel_url}"
+    footer = f"Подписаться: {channel_reference}"
     message = f"{normalized_text}\n\n{footer}"
     if len(message) <= MAX_TELEGRAM_TEXT_LENGTH:
         return message
@@ -84,22 +84,23 @@ def send_telegram_message(
     return TelegramSendMessageResult(message_id=message_id)
 
 
-def _resolve_channel_url(*, settings: Settings) -> str | None:
-    if settings.telegram_channel_url:
-        return settings.telegram_channel_url.strip() or None
+def _resolve_channel_reference(*, settings: Settings) -> str | None:
+    explicit_reference = _normalize_channel_reference(settings.telegram_channel_url)
+    if explicit_reference:
+        return explicit_reference
 
     channel_id = settings.telegram_channel_id.strip()
     if channel_id.startswith("@") and len(channel_id) > 1:
-        return f"https://t.me/{channel_id[1:]}"
+        return channel_id
 
-    return _resolve_channel_url_via_bot_api(
+    return _resolve_channel_reference_via_bot_api(
         bot_token=settings.telegram_bot_token,
         channel_id=channel_id,
     )
 
 
 @lru_cache(maxsize=16)
-def _resolve_channel_url_via_bot_api(*, bot_token: str, channel_id: str) -> str | None:
+def _resolve_channel_reference_via_bot_api(*, bot_token: str, channel_id: str) -> str | None:
     request = Request(
         url=(
             f"https://api.telegram.org/bot{bot_token}/getChat"
@@ -120,10 +121,29 @@ def _resolve_channel_url_via_bot_api(*, bot_token: str, channel_id: str) -> str 
     result = payload.get("result") or {}
     username = str(result.get("username") or "").strip()
     if username:
-        return f"https://t.me/{username}"
+        return f"@{username}"
 
     invite_link = str(result.get("invite_link") or "").strip()
     if invite_link:
         return invite_link
 
     return None
+
+
+def _normalize_channel_reference(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    if normalized.startswith("@"):
+        return normalized
+
+    if normalized.startswith("https://t.me/"):
+        slug = normalized.removeprefix("https://t.me/").strip("/")
+        if slug and not slug.startswith("+"):
+            return f"@{slug}"
+
+    return normalized

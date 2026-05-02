@@ -5,14 +5,22 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from html import unescape
 from typing import Iterable
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree as ET
+
+from bs4 import BeautifulSoup
 
 from app.db.models.news_source import NewsSource
 from app.parsers.base import NormalizedContentItem
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WHITESPACE_RE = re.compile(r"\s+")
+_MIN_FULL_TEXT_LENGTH = 420
+_FULL_ARTICLE_ENABLED_DOMAINS = {
+    "www.championat.com",
+    "championat.com",
+}
 
 
 class RssAdapterError(ValueError):
@@ -26,13 +34,13 @@ class RssAdapter:
         root = ET.fromstring(xml_payload)
 
         if self._tag_name(root.tag) == "feed":
-            return self._parse_atom_entries(root, feed_url)
+            return self._parse_atom_entries(root, feed_url, source)
 
         channel = root.find("./channel")
         if channel is None:
             raise RssAdapterError("RSS feed does not contain channel element.")
 
-        return self._parse_rss_items(channel.findall("./item"), feed_url)
+        return self._parse_rss_items(channel.findall("./item"), feed_url, source)
 
     def _get_feed_url(self, source: NewsSource) -> str:
         adapter_feed_url = source.adapter_config.get("feed_url")
@@ -55,10 +63,22 @@ class RssAdapter:
         with urlopen(request, timeout=20) as response:
             return response.read()
 
+    def _fetch_article_html(self, article_url: str) -> str:
+        request = Request(
+            article_url,
+            headers={
+                "User-Agent": "football-tg-app/0.1 (+https://localhost)",
+                "Accept": "text/html,application/xhtml+xml",
+            },
+        )
+        with urlopen(request, timeout=20) as response:
+            return response.read().decode("utf-8", errors="ignore")
+
     def _parse_rss_items(
         self,
         items: Iterable[ET.Element],
         feed_url: str,
+        source: NewsSource,
     ) -> list[NormalizedContentItem]:
         normalized_items: list[NormalizedContentItem] = []
 
@@ -73,6 +93,11 @@ class RssAdapter:
                 self._clean_html_text(self._child_text(item, "description"))
                 or self._clean_html_text(self._child_text(item, "encoded"))
                 or title
+            )
+            description = self._maybe_fetch_full_article(
+                source=source,
+                article_url=link,
+                current_text=description,
             )
             excerpt = self._build_excerpt(description)
             author = self._clean_text(
@@ -105,6 +130,7 @@ class RssAdapter:
         self,
         root: ET.Element,
         feed_url: str,
+        source: NewsSource,
     ) -> list[NormalizedContentItem]:
         normalized_items: list[NormalizedContentItem] = []
 
@@ -119,6 +145,11 @@ class RssAdapter:
                 self._clean_html_text(self._child_text(entry, "content"))
                 or self._clean_html_text(self._child_text(entry, "summary"))
                 or title
+            )
+            content = self._maybe_fetch_full_article(
+                source=source,
+                article_url=link,
+                current_text=content,
             )
             excerpt = self._build_excerpt(content)
             author = self._atom_author(entry)
@@ -171,6 +202,78 @@ class RssAdapter:
                     return media_url.strip()
 
         return None
+
+    def _maybe_fetch_full_article(
+        self,
+        *,
+        source: NewsSource,
+        article_url: str | None,
+        current_text: str,
+    ) -> str:
+        if not article_url:
+            return current_text
+
+        if not self._should_fetch_full_article(
+            source=source,
+            article_url=article_url,
+            current_text=current_text,
+        ):
+            return current_text
+
+        try:
+            html = self._fetch_article_html(article_url)
+            extracted = self._extract_article_text(article_url=article_url, html=html)
+        except Exception:
+            return current_text
+
+        if not extracted or len(extracted) <= len(current_text):
+            return current_text
+
+        return extracted
+
+    def _should_fetch_full_article(
+        self,
+        *,
+        source: NewsSource,
+        article_url: str,
+        current_text: str,
+    ) -> bool:
+        fetch_setting = source.adapter_config.get("fetch_full_article", True)
+        if isinstance(fetch_setting, bool) and not fetch_setting:
+            return False
+
+        if len(current_text.strip()) >= _MIN_FULL_TEXT_LENGTH:
+            return False
+
+        hostname = urlparse(article_url).netloc.lower()
+        return hostname in _FULL_ARTICLE_ENABLED_DOMAINS
+
+    def _extract_article_text(self, *, article_url: str, html: str) -> str | None:
+        hostname = urlparse(article_url).netloc.lower()
+
+        if hostname in {"www.championat.com", "championat.com"}:
+            return self._extract_championat_article_text(html)
+
+        return None
+
+    def _extract_championat_article_text(self, html: str) -> str | None:
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.select_one("div.article-content")
+        if container is None:
+            return None
+
+        paragraphs: list[str] = []
+        for paragraph in container.select("p"):
+            text = self._clean_text(paragraph.get_text(" ", strip=True))
+            if not text:
+                continue
+            paragraphs.append(text)
+
+        if not paragraphs:
+            return None
+
+        article_text = "\n\n".join(paragraphs).strip()
+        return article_text or None
 
     def _parse_datetime(self, raw_value: str | None) -> datetime | None:
         cleaned = self._clean_text(raw_value)
