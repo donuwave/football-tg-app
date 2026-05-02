@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.models.content_item import ContentItem
 from app.db.models.enums import ContentItemStatus, NewsSourceSyncStatus
 from app.db.models.news_source import NewsSource
@@ -33,6 +34,7 @@ class SourceSyncResult:
 def sync_news_source(*, db: Session, source: NewsSource) -> SourceSyncResult:
     adapter = get_adapter(source.source_type)
     sync_started_at = datetime.now(tz=UTC)
+    settings = get_settings()
 
     try:
         normalized_items = adapter.run(source)
@@ -49,12 +51,18 @@ def sync_news_source(*, db: Session, source: NewsSource) -> SourceSyncResult:
         db.commit()
         raise SourceSyncFailedError(str(exc)) from exc
 
+    recent_items, aged_out_count = _filter_recent_items(
+        items=normalized_items,
+        synced_at=sync_started_at,
+        max_age_hours=settings.parser_max_item_age_hours,
+    )
+
     inserted_count = 0
     updated_count = 0
-    skipped_count = 0
+    skipped_count = aged_out_count
     seen_keys: set[tuple[str, str]] = set()
 
-    for normalized_item in normalized_items:
+    for normalized_item in recent_items:
         canonical_item = _canonicalize_item(normalized_item)
         dedupe_key = _build_dedupe_key(canonical_item)
         if dedupe_key is None:
@@ -96,7 +104,7 @@ def sync_news_source(*, db: Session, source: NewsSource) -> SourceSyncResult:
 
     return SourceSyncResult(
         source=source,
-        fetched_count=len(normalized_items),
+        fetched_count=len(recent_items),
         inserted_count=inserted_count,
         updated_count=updated_count,
         skipped_count=skipped_count,
@@ -114,12 +122,57 @@ def get_source_or_404(*, db: Session, source_id: UUID) -> NewsSource:
     return source
 
 
+def _filter_recent_items(
+    *,
+    items: list[NormalizedContentItem],
+    synced_at: datetime,
+    max_age_hours: int,
+) -> tuple[list[NormalizedContentItem], int]:
+    if max_age_hours <= 0:
+        return items, 0
+
+    cutoff = synced_at - timedelta(hours=max_age_hours)
+    recent_items: list[NormalizedContentItem] = []
+    skipped_count = 0
+
+    for item in items:
+        published_at = _normalize_datetime(item.published_at)
+        if published_at is None or published_at < cutoff:
+            skipped_count += 1
+            continue
+
+        if published_at is not item.published_at:
+            item = NormalizedContentItem(
+                external_id=item.external_id,
+                url=item.url,
+                title=item.title,
+                raw_text=item.raw_text,
+                excerpt=item.excerpt,
+                image_url=item.image_url,
+                author_name=item.author_name,
+                published_at=published_at,
+                source_payload=item.source_payload,
+            )
+
+        recent_items.append(item)
+
+    return recent_items, skipped_count
+
+
 def _build_dedupe_key(item: NormalizedContentItem) -> tuple[str, str] | None:
     if item.external_id:
         return ("external_id", item.external_id)
     if item.url:
         return ("url", item.url)
     return None
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _canonicalize_item(item: NormalizedContentItem) -> NormalizedContentItem:

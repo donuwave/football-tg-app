@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     local_storage_path: str = "./storage"
     parser_interval_minutes: int = 120
+    parser_max_item_age_hours: int = 24
     ai_service_mode: str = "stub"
     ai_ollama_base_url: str = "http://host.docker.internal:11434"
     ai_ollama_model: str = "qwen2.5:3b"
