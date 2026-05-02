@@ -125,20 +125,23 @@ def _build_user_prompt(*, item: ContentItem, instruction: str | None) -> str:
 
 def _build_stub_post(*, item: ContentItem, instruction: str | None) -> str:
     lead = item.title.strip().rstrip(".")
-    summary = (item.excerpt or item.raw_text).strip()
-    summary = " ".join(summary.split())
-    if len(summary) > 320:
-        summary = f"{summary[:317].rstrip()}..."
+    summary_limit = _stub_summary_limit(instruction)
+    summary = _normalize_text(item.excerpt or item.raw_text)
+    if len(summary) > summary_limit:
+        summary = f"{summary[:summary_limit - 3].rstrip()}..."
 
     source_label = item.source.external_ref or item.source.name if item.source else "source"
     published_hint = ""
     if item.published_at is not None:
         published_hint = item.published_at.astimezone(UTC).strftime("%d.%m %H:%M UTC")
 
-    lines = [lead, "", summary]
+    body = summary
+    if body and not body.endswith((".", "!", "?")):
+        body = f"{body}."
+    if body and not body.lower().startswith(("по данным", "как сообщает", "сообщается")):
+        body = f"По данным {source_label}, {body[0].lower() + body[1:] if len(body) > 1 else body.lower()}"
 
-    if instruction:
-        lines.extend(["", f"Редакторская задача: {instruction}"])
+    lines = [lead, "", body or "Детали новости уточняются."]
 
     footer = f"Источник: {source_label}"
     if published_hint:
@@ -154,3 +157,19 @@ def _normalize_instruction(value: str | None) -> str | None:
 
     normalized = " ".join(value.split())
     return normalized or None
+
+
+def _normalize_text(value: str | None) -> str:
+    return " ".join((value or "").split()).strip()
+
+
+def _stub_summary_limit(instruction: str | None) -> int:
+    if not instruction:
+        return 320
+
+    lowered = instruction.lower()
+    if "очень корот" in lowered or "ультракорот" in lowered:
+        return 140
+    if "коротк" in lowered or "кратк" in lowered:
+        return 220
+    return 320

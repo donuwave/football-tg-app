@@ -13,6 +13,28 @@ import { useNewsFeed } from "../features/news/useNewsFeed";
 import { useSources } from "../features/news/useSources";
 import { formatDateTime } from "../lib/date";
 
+const sourceTypeLabels = {
+  rss: "RSS",
+  x: "X",
+  website: "Сайт"
+} as const;
+
+const syncStatusLabels = {
+  never_run: "Не запускался",
+  ok: "Ок",
+  failed: "Ошибка"
+} as const;
+
+const authStatusLabels = {
+  loading: "Проверка",
+  authorized: "Разрешён",
+  forbidden: "Запрещён",
+  missing_api_base_url: "Не настроен API URL",
+  no_telegram_context: "Нет Telegram-контекста",
+  unauthorized: "Сессия невалидна",
+  error: "Ошибка"
+} as const;
+
 export function HomePage() {
   const { apiBaseUrl, authDate, initDataPresent, status, user } = useAuth();
   const {
@@ -81,7 +103,7 @@ export function HomePage() {
     try {
       const result = await syncNow(sourceId);
       setLastSyncSummary(
-        `sync ok: +${result.insertedCount} new, ~${result.updatedCount} updated, ${result.skippedCount} skipped`
+        `Синхронизация завершена: +${result.insertedCount} новых, ~${result.updatedCount} обновлено, ${result.skippedCount} пропущено`
       );
       await refreshSources();
       await refreshFeed();
@@ -125,8 +147,8 @@ export function HomePage() {
               Контур новостей: источники, sync, AI rewrite и публикация в Telegram.
             </p>
             <p className="muted">
-              owner: {user?.username ? `@${user.username}` : user?.id} • auth:{" "}
-              {authDate ? new Date(authDate).toLocaleString("ru-RU") : "n/a"}
+              владелец: {user?.username ? `@${user.username}` : user?.id} • вход:{" "}
+              {authDate ? new Date(authDate).toLocaleString("ru-RU") : "нет"}
             </p>
             {feedStatus === "error" ? (
               <p className="error-text">{feedErrorMessage}</p>
@@ -159,26 +181,26 @@ export function HomePage() {
         <div className="status-panel">
           <div className="surface__header">
             <div>
-              <h3 className="section-title">Debug</h3>
-              <p className="muted">Текущее состояние auth и backend URL, зашитые в сборку.</p>
+              <h3 className="section-title">Отладка</h3>
+              <p className="muted">Текущее состояние авторизации и адреса backend.</p>
             </div>
           </div>
 
           <div className="status-panel__row">
-            <span>API base URL</span>
-            <strong className="status-panel__value">{apiBaseUrl || "missing"}</strong>
+            <span>Базовый URL API</span>
+            <strong className="status-panel__value">{apiBaseUrl || "не задан"}</strong>
           </div>
           <div className="status-panel__row">
             <span>Telegram initData</span>
-            <strong>{initDataPresent ? "present" : "missing"}</strong>
+            <strong>{initDataPresent ? "есть" : "нет"}</strong>
           </div>
           <div className="status-panel__row">
-            <span>Auth status</span>
-            <strong>{status}</strong>
+            <span>Статус входа</span>
+            <strong>{authStatusLabels[status]}</strong>
           </div>
           <div className="status-panel__row">
-            <span>Owner</span>
-            <strong>{user?.username ? `@${user.username}` : user?.id ?? "n/a"}</strong>
+            <span>Владелец</span>
+            <strong>{user?.username ? `@${user.username}` : user?.id ?? "нет"}</strong>
           </div>
         </div>
       </section>
@@ -198,7 +220,7 @@ export function HomePage() {
             </p>
             <div className="feature-tile__meta">
               <span>{feedStatus === "loading" ? "..." : items.length} карточки</span>
-              <span>publish ready</span>
+              <span>готово к публикации</span>
             </div>
           </div>
         </Link>
@@ -217,7 +239,7 @@ export function HomePage() {
             </p>
             <div className="feature-tile__meta">
               <span>{sourcesStatus === "loading" ? "..." : sources.length} всего</span>
-              <span>auto sync 2h</span>
+              <span>автосинк каждые 2 часа</span>
             </div>
           </div>
         </button>
@@ -258,7 +280,7 @@ export function HomePage() {
           </label>
 
           <label className="field">
-            <span className="field__label">RSS URL</span>
+            <span className="field__label">URL RSS-ленты</span>
             <input
               className="input"
               onChange={(event) => setFeedUrl(event.target.value)}
@@ -270,7 +292,7 @@ export function HomePage() {
           </label>
 
           <label className="field">
-            <span className="field__label">External ref</span>
+            <span className="field__label">Референс источника</span>
             <input
               className="input"
               maxLength={255}
@@ -310,7 +332,7 @@ export function HomePage() {
           {sources.map((source) => {
             const feedUrlValue = source.adapterConfig.feed_url;
             const feedUrlLabel =
-              typeof feedUrlValue === "string" ? feedUrlValue : source.baseUrl ?? "n/a";
+              typeof feedUrlValue === "string" ? feedUrlValue : source.baseUrl ?? "нет";
             const isSyncing = syncState[source.id] ?? false;
             const isToggling = toggleState[source.id] ?? false;
 
@@ -331,14 +353,14 @@ export function HomePage() {
                               : "pill--neutral"
                           }`}
                         >
-                          {source.lastSyncStatus}
+                          {syncStatusLabels[source.lastSyncStatus]}
                         </span>
                         {!source.isActive ? (
-                          <span className="pill pill--neutral">paused</span>
+                          <span className="pill pill--neutral">Выключен</span>
                         ) : null}
                       </div>
                       <p className="muted">
-                        {source.sourceType} • {source.externalRef ?? "n/a"}
+                        {sourceTypeLabels[source.sourceType]} • {source.externalRef ?? "нет"}
                       </p>
                       <p className="muted source-card__url">{feedUrlLabel}</p>
                     </div>
@@ -346,7 +368,7 @@ export function HomePage() {
 
                   <div className="source-card__meta">
                     <span className="muted">
-                      last sync {formatDateTime(source.lastSyncedAt)}
+                      Последняя синхронизация: {formatDateTime(source.lastSyncedAt)}
                     </span>
                     {source.lastErrorMessage ? (
                       <span className="error-text">{source.lastErrorMessage}</span>
@@ -379,7 +401,7 @@ export function HomePage() {
                     ) : (
                       <RefreshCw size={16} />
                     )}
-                    Sync
+                    Синхронизировать
                   </button>
                 </div>
               </div>

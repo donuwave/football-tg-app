@@ -581,6 +581,10 @@ button:disabled {
   border-color: var(--border);
 }
 
+.button--inline {
+  width: fit-content;
+}
+
 .textarea {
   width: 100%;
   min-height: 180px;
@@ -593,6 +597,10 @@ button:disabled {
 
 .textarea--instruction {
   min-height: 120px;
+}
+
+.inline-link {
+  color: var(--accent);
 }
 
 .status-panel {

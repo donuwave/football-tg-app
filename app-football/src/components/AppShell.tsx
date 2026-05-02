@@ -24,7 +24,7 @@ export function AppShell() {
   const location = useLocation();
   const pageTitle = getPageTitle(location.pathname);
   const { user } = useAuth();
-  const userLabel = user?.username ? `@${user.username}` : `id ${user?.id ?? "n/a"}`;
+  const userLabel = user?.username ? `@${user.username}` : `id ${user?.id ?? "нет"}`;
 
   return (
     <div className="app-shell">
@@ -43,7 +43,7 @@ export function AppShell() {
             </span>
             <span className="pill pill--neutral">
               <Clock3 size={14} />
-              sync 2h
+              синк 2ч
             </span>
           </div>
         </div>

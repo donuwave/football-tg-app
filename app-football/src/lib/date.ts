@@ -1,6 +1,6 @@
 export function formatDateTime(value?: string | null) {
   if (!value) {
-    return "n/a";
+    return "нет";
   }
 
   const date = new Date(value);

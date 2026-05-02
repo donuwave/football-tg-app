@@ -14,11 +14,11 @@ const stateText: Record<
   },
   forbidden: {
     title: "Доступ запрещён",
-    description: "Этот Telegram user id не совпадает с owner id приложения."
+    description: "Этот Telegram user id не совпадает с id владельца приложения."
   },
   missing_api_base_url: {
     title: "Не настроен API URL",
-    description: "Фронтенд не знает, куда отправлять запрос на backend verify."
+    description: "Фронтенд не знает, куда отправлять запрос на проверку backend."
   },
   no_telegram_context: {
     title: "Нет Telegram контекста",
@@ -34,6 +34,15 @@ const stateText: Record<
     description: "Проверь доступность API и CORS для текущего домена фронтенда."
   }
 };
+
+const statusLabels = {
+  loading: "Проверка",
+  forbidden: "Запрещён",
+  missing_api_base_url: "Не настроен API URL",
+  no_telegram_context: "Нет Telegram-контекста",
+  unauthorized: "Сессия невалидна",
+  error: "Ошибка"
+} as const;
 
 export function AuthGate() {
   const auth = useAuth();
@@ -57,7 +66,7 @@ export function AuthGate() {
         <div className="stack-sm">
           <span className="auth-card__eyebrow">
             <ShieldCheck size={14} />
-            Telegram auth
+            Telegram авторизация
           </span>
           <h1 className="auth-card__title">{state.title}</h1>
           <p className="muted">{state.description}</p>
@@ -65,16 +74,16 @@ export function AuthGate() {
 
         <div className="status-panel">
           <div className="status-panel__row">
-            <span>API base URL</span>
-            <strong>{auth.apiBaseUrl || "missing"}</strong>
+            <span>Базовый URL API</span>
+            <strong>{auth.apiBaseUrl || "не задан"}</strong>
           </div>
           <div className="status-panel__row">
             <span>Telegram initData</span>
-            <strong>{auth.initDataPresent ? "present" : "missing"}</strong>
+            <strong>{auth.initDataPresent ? "есть" : "нет"}</strong>
           </div>
           <div className="status-panel__row">
-            <span>Status</span>
-            <strong>{auth.status}</strong>
+            <span>Статус</span>
+            <strong>{statusLabels[auth.status]}</strong>
           </div>
         </div>
 

@@ -1,6 +1,13 @@
-import { Bot, CheckCircle2, RefreshCw, Rss, Send } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  RefreshCw,
+  Rss,
+  Send
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useNewsFeed } from "../features/news/useNewsFeed";
 import { formatDateTime } from "../lib/date";
 import { generateNewsPost, publishNewsPost } from "../lib/news-api";
@@ -12,12 +19,39 @@ const sourceTypeLabels: Record<NewsFilter, string> = {
   all: "Все",
   rss: "RSS",
   x: "X",
-  website: "Site"
+  website: "Сайт"
 };
+
+const publishStatusLabels: Record<PublishStatus, string> = {
+  idle: "Черновик",
+  processing: "Публикуется",
+  published: "Опубликовано",
+  failed: "Ошибка"
+};
+
+const itemStatusLabels: Record<string, string> = {
+  new: "Новая",
+  published: "Опубликована",
+  archived: "В архиве"
+};
+
+const aiModeLabels: Record<string, string> = {
+  stub: "Шаблон",
+  ollama: "Ollama"
+};
+
+function normalizeFilter(value: string | null): NewsFilter {
+  if (value === "rss" || value === "x" || value === "website") {
+    return value;
+  }
+
+  return "all";
+}
 
 export function NewsPage() {
   const { newsId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     errorMessage,
     items,
@@ -25,7 +59,6 @@ export function NewsPage() {
     refresh,
     status: feedStatus
   } = useNewsFeed();
-  const [filter, setFilter] = useState<NewsFilter>("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [instructions, setInstructions] = useState<Record<string, string>>({});
   const [generationState, setGenerationState] = useState<Record<string, boolean>>({});
@@ -34,6 +67,7 @@ export function NewsPage() {
   );
   const [generationMode, setGenerationMode] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState("");
+  const filter = normalizeFilter(searchParams.get("filter"));
 
   const filteredNews = useMemo(() => {
     if (filter === "all") {
@@ -43,61 +77,47 @@ export function NewsPage() {
     return items.filter((item) => item.source.sourceType === filter);
   }, [filter, items]);
 
-  const selectedNews =
-    filteredNews.find((item) => item.id === newsId) ?? filteredNews[0] ?? null;
+  const selectedNews = useMemo(
+    () => items.find((item) => item.id === newsId) ?? null,
+    [items, newsId]
+  );
 
-  useEffect(() => {
-    if (feedStatus !== "ready") {
-      return;
+  const currentDraft = selectedNews ? drafts[selectedNews.id] ?? "" : "";
+  const currentInstruction = selectedNews
+    ? instructions[selectedNews.id] ??
+      "Сделай короткий пост для Telegram на русском языке, без эмодзи, с акцентом на главный факт."
+    : "";
+  const currentStatus: PublishStatus = selectedNews
+    ? publishState[selectedNews.id] ??
+      (selectedNews.status === "published" ? "published" : "idle")
+    : "idle";
+  const isGenerating = selectedNews ? generationState[selectedNews.id] ?? false : false;
+  const currentGenerationMode = selectedNews
+    ? generationMode[selectedNews.id] ?? null
+    : null;
+
+  function setFilter(nextFilter: NewsFilter) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextFilter === "all") {
+      nextParams.delete("filter");
+    } else {
+      nextParams.set("filter", nextFilter);
     }
-
-    if (!selectedNews) {
-      return;
-    }
-
-    if (!newsId || newsId !== selectedNews.id) {
-      navigate(`/news/${selectedNews.id}`, { replace: true });
-    }
-  }, [feedStatus, navigate, newsId, selectedNews]);
-
-  if (feedStatus === "loading") {
-    return (
-      <section className="surface">
-        <p className="muted">Загрузка ленты новостей...</p>
-      </section>
-    );
+    setSearchParams(nextParams, { replace: true });
   }
 
-  if (feedStatus === "error") {
-    return (
-      <section className="surface stack-sm">
-        <h2 className="section-title">Не удалось загрузить новости</h2>
-        <p className="error-text">{errorMessage}</p>
-      </section>
-    );
+  function openNews(nextNewsId: string) {
+    const query = searchParams.toString();
+    navigate(`/news/${nextNewsId}${query ? `?${query}` : ""}`);
   }
 
-  if (!selectedNews) {
-    return (
-      <section className="surface">
-        <p className="muted">Нет материалов для выбранного фильтра.</p>
-      </section>
-    );
+  function goToList() {
+    const query = searchParams.toString();
+    navigate(`/news${query ? `?${query}` : ""}`);
   }
-
-  const selectedSource = selectedNews.source;
-  const currentDraft = drafts[selectedNews.id] ?? "";
-  const currentInstruction =
-    instructions[selectedNews.id] ??
-    "Сделай короткий пост для Telegram-канала: 2-4 абзаца, без эмодзи, с сильным первым предложением и аккуратным завершением.";
-  const currentStatus =
-    publishState[selectedNews.id] ??
-    (selectedNews.status === "published" ? "published" : "idle");
-  const isGenerating = generationState[selectedNews.id] ?? false;
-  const currentGenerationMode = generationMode[selectedNews.id] ?? null;
 
   async function handlePublish() {
-    if (!currentDraft.trim()) {
+    if (!selectedNews || !currentDraft.trim()) {
       return;
     }
 
@@ -119,11 +139,15 @@ export function NewsPage() {
         ...current,
         [selectedNews.id]: "failed"
       }));
-      setActionError(error instanceof Error ? error.message : "Publish request failed.");
+      setActionError(error instanceof Error ? error.message : "Не удалось опубликовать пост.");
     }
   }
 
   async function handleGenerate() {
+    if (!selectedNews) {
+      return;
+    }
+
     setActionError("");
     setGenerationState((current) => ({
       ...current,
@@ -142,7 +166,7 @@ export function NewsPage() {
       }));
     } catch (error) {
       setActionError(
-        error instanceof Error ? error.message : "Generate post request failed."
+        error instanceof Error ? error.message : "Не удалось сгенерировать текст."
       );
     } finally {
       setGenerationState((current) => ({
@@ -152,13 +176,30 @@ export function NewsPage() {
     }
   }
 
-  return (
-    <div className="news-layout">
+  if (feedStatus === "loading") {
+    return (
+      <section className="surface">
+        <p className="muted">Загрузка ленты новостей...</p>
+      </section>
+    );
+  }
+
+  if (feedStatus === "error") {
+    return (
+      <section className="surface stack-sm">
+        <h2 className="section-title">Не удалось загрузить новости</h2>
+        <p className="error-text">{errorMessage}</p>
+      </section>
+    );
+  }
+
+  if (!newsId) {
+    return (
       <section className="surface stack-md">
         <div className="surface__header surface__header--wrap">
           <div>
-            <h2 className="section-title">Лента</h2>
-            <p className="muted">{filteredNews.length} материалов в текущем срезе</p>
+            <h2 className="section-title">Лента новостей</h2>
+            <p className="muted">{filteredNews.length} материалов в текущем фильтре</p>
           </div>
           <div className="control-cluster">
             <div className="chip-group">
@@ -180,21 +221,27 @@ export function NewsPage() {
           </div>
         </div>
 
-        <div className="news-list">
-          {filteredNews.map((item) => {
-            const isActive = item.id === selectedNews.id;
-
-            return (
+        {filteredNews.length === 0 ? (
+          <div className="detail-block">
+            <span className="detail-block__label">Список пуст</span>
+            <p>
+              По текущему фильтру материалов нет. Фильтр сохранён, можешь сменить его
+              или дождаться следующей синхронизации.
+            </p>
+          </div>
+        ) : (
+          <div className="news-list">
+            {filteredNews.map((item) => (
               <button
-                className={`news-card${isActive ? " news-card--active" : ""}`}
+                className="news-card"
                 key={item.id}
-                onClick={() => navigate(`/news/${item.id}`)}
+                onClick={() => openNews(item.id)}
                 type="button"
               >
                 <div className="news-card__head">
                   <span className="pill pill--neutral">
                     <Rss size={14} />
-                    {item.source.sourceType}
+                    {sourceTypeLabels[item.source.sourceType]}
                   </span>
                   <span className="muted">{formatDateTime(item.publishedAt)}</span>
                 </div>
@@ -202,25 +249,55 @@ export function NewsPage() {
                 <p className="news-card__excerpt">{item.excerpt ?? item.rawText}</p>
                 <div className="news-card__footer">
                   <span>{item.source.name}</span>
+                  <span className="muted">{itemStatusLabels[item.status] ?? item.status}</span>
                 </div>
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
+    );
+  }
 
+  if (!selectedNews) {
+    return (
       <section className="surface stack-md">
         <div className="surface__header">
           <div>
-            <h2 className="section-title">{selectedNews.title}</h2>
+            <h2 className="section-title">Новость не найдена</h2>
             <p className="muted">
-              {selectedSource?.name} • {formatDateTime(selectedNews.publishedAt)}
+              Материал пропал из ленты или ещё не загрузился после синхронизации.
             </p>
+          </div>
+        </div>
+        <button className="button button--secondary" onClick={goToList} type="button">
+          <ArrowLeft size={16} />
+          Вернуться к ленте
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <div className="stack-lg">
+      <section className="surface stack-md">
+        <div className="surface__header surface__header--wrap">
+          <div className="stack-sm">
+            <button className="button button--secondary button--inline" onClick={goToList} type="button">
+              <ArrowLeft size={16} />
+              К ленте
+            </button>
+            <div>
+              <h2 className="section-title">{selectedNews.title}</h2>
+              <p className="muted">
+                {selectedNews.source.name} • {formatDateTime(selectedNews.publishedAt)}
+              </p>
+            </div>
           </div>
           {currentStatus === "published" ? (
             <span className="pill pill--success">
               <CheckCircle2 size={14} />
-              Отправлено
+              Опубликовано
             </span>
           ) : null}
         </div>
@@ -228,15 +305,21 @@ export function NewsPage() {
         <div className="detail-grid">
           <div className="stack-md">
             <div className="detail-block">
-              <span className="detail-block__label">Оригинал</span>
+              <span className="detail-block__label">Оригинальный материал</span>
               <p>{selectedNews.rawText}</p>
             </div>
             <div className="detail-block">
-              <span className="detail-block__label">Подсказка</span>
+              <span className="detail-block__label">Данные источника</span>
               <p className="muted">
-                image hint: {selectedNews.imageHint ?? "n/a"} • source ref:{" "}
-                {selectedSource?.externalRef ?? "n/a"}
+                Тип: {sourceTypeLabels[selectedNews.source.sourceType]} • референс:{" "}
+                {selectedNews.source.externalRef ?? "нет"}
               </p>
+              <p className="muted">
+                Подсказка по изображению: {selectedNews.imageHint ?? "нет"}
+              </p>
+              {selectedNews.source.externalRef ? (
+                <p className="muted">Источник: {selectedNews.source.externalRef}</p>
+              ) : null}
             </div>
           </div>
 
@@ -249,7 +332,7 @@ export function NewsPage() {
                 type="button"
               >
                 <Bot size={16} />
-                {isGenerating ? "Генерация..." : "AI шаблон"}
+                {isGenerating ? "Генерация..." : "Сгенерировать текст"}
               </button>
 
               <button
@@ -267,7 +350,9 @@ export function NewsPage() {
 
             {actionError ? <p className="error-text">{actionError}</p> : null}
             {currentGenerationMode ? (
-              <p className="muted">provider: {currentGenerationMode}</p>
+              <p className="muted">
+                Режим AI: {aiModeLabels[currentGenerationMode] ?? currentGenerationMode}
+              </p>
             ) : null}
 
             <label className="stack-sm">
@@ -280,7 +365,7 @@ export function NewsPage() {
                     [selectedNews.id]: event.target.value
                   }))
                 }
-                placeholder="Например: сделай короткий пост, без эмодзи, с акцентом на трансферный инсайд."
+                placeholder="Например: сделай короткий пост без эмодзи с акцентом на трансферный инсайд."
                 value={currentInstruction}
               />
             </label>
@@ -302,20 +387,49 @@ export function NewsPage() {
 
             <div className="status-panel">
               <div className="status-panel__row">
-                <span>Telegram channel</span>
-                <strong>ready</strong>
+                <span>Канал Telegram</span>
+                <strong>Готов</strong>
               </div>
               <div className="status-panel__row">
-                <span>AI result</span>
-                <strong>{currentDraft.trim() ? "prepared" : "empty"}</strong>
+                <span>Текст поста</span>
+                <strong>{currentDraft.trim() ? "Готов" : "Пусто"}</strong>
               </div>
               <div className="status-panel__row">
-                <span>Publish status</span>
-                <strong>{currentStatus}</strong>
+                <span>Статус публикации</span>
+                <strong>{publishStatusLabels[currentStatus]}</strong>
               </div>
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="surface stack-md">
+        <div className="surface__header surface__header--wrap">
+          <div>
+            <h2 className="section-title">Текущий фильтр ленты</h2>
+            <p className="muted">
+              Фильтр сохранён, даже если по нему сейчас нет материалов.
+            </p>
+          </div>
+          <div className="chip-group">
+            {(Object.keys(sourceTypeLabels) as NewsFilter[]).map((key) => (
+              <button
+                key={key}
+                className={`chip-button${filter === key ? " chip-button--active" : ""}`}
+                onClick={() => setFilter(key)}
+                type="button"
+              >
+                {sourceTypeLabels[key]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="muted">
+          Вернуться к списку:{" "}
+          <Link className="inline-link" to={`/news${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}>
+            открыть ленту
+          </Link>
+        </p>
       </section>
     </div>
   );
