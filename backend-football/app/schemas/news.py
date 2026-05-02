@@ -71,6 +71,12 @@ class NewsGenerateResponse(BaseModel):
     mode: str
 
 
+class NewsTranslateResponse(BaseModel):
+    item_id: UUID
+    text: str
+    mode: str
+
+
 class NewsGenerateRequest(BaseModel):
     instruction: str | None = Field(default=None, max_length=4000)
 

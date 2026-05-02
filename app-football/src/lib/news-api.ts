@@ -33,6 +33,12 @@ interface BackendGenerateNewsPostResponse {
   mode: string;
 }
 
+interface BackendTranslateNewsResponse {
+  item_id: string;
+  text: string;
+  mode: string;
+}
+
 interface BackendPublishNewsResponse {
   item_id: string;
   batch_id: string;
@@ -60,6 +66,12 @@ export interface PublishNewsResponse {
   status: string;
   platform: string;
   externalPublicationId: string | null;
+}
+
+export interface TranslateNewsResponse {
+  itemId: string;
+  text: string;
+  mode: string;
 }
 
 function mapSource(source: BackendNewsSource): NewsSource {
@@ -107,6 +119,21 @@ export async function generateNewsPost(
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ instruction })
+    }
+  );
+
+  return {
+    itemId: payload.item_id,
+    text: payload.text,
+    mode: payload.mode
+  };
+}
+
+export async function translateNewsItem(newsId: string): Promise<TranslateNewsResponse> {
+  const payload = await requestProtectedJson<BackendTranslateNewsResponse>(
+    `/api/v1/news/${newsId}/translate`,
+    {
+      method: "POST"
     }
   );
 

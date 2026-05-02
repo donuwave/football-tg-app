@@ -15,12 +15,14 @@ from app.schemas.news import (
     NewsItemResponse,
     NewsPublishRequest,
     NewsPublishResponse,
+    NewsTranslateResponse,
 )
 from app.services.news import (
     generate_news_post,
     get_news_item_or_404,
     list_news_feed,
     publish_news_item,
+    translate_news_item_for_reading,
 )
 
 router = APIRouter()
@@ -58,6 +60,20 @@ def generate_news_item_post(
     return generate_news_post(
         item=item,
         instruction=payload.instruction,
+        settings=settings,
+    )
+
+
+@router.post("/{news_id}/translate", response_model=NewsTranslateResponse)
+def translate_news_item_text(
+    news_id: UUID,
+    _: Annotated[TelegramValidationResult, Depends(require_allowed_telegram_user)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    db: Annotated[Session, Depends(get_db)],
+) -> NewsTranslateResponse:
+    item = get_news_item_or_404(db=db, news_id=news_id)
+    return translate_news_item_for_reading(
+        item=item,
         settings=settings,
     )
 

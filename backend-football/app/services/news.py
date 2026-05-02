@@ -25,10 +25,12 @@ from app.schemas.news import (
     NewsGenerateResponse,
     NewsItemResponse,
     NewsPublishResponse,
+    NewsTranslateResponse,
     NewsSourceResponse,
 )
 from app.services.ai import AIRewriteError, rewrite_news_post
-from app.services.telegram import TelegramPublishError, send_telegram_message
+from app.services.telegram import TelegramPublishError, append_channel_link, send_telegram_message
+from app.services.translation import TranslationError, translate_news_item
 
 
 def list_news_feed(
@@ -94,6 +96,22 @@ def generate_news_post(
     return NewsGenerateResponse(item_id=item.id, text=result.text, mode=result.mode)
 
 
+def translate_news_item_for_reading(
+    *,
+    item: ContentItem,
+    settings: Settings,
+) -> NewsTranslateResponse:
+    try:
+        result = translate_news_item(item=item, settings=settings)
+    except TranslationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    return NewsTranslateResponse(item_id=item.id, text=result.text, mode=result.mode)
+
+
 def publish_news_item(
     *,
     db: Session,
@@ -109,12 +127,14 @@ def publish_news_item(
             detail="Publication text cannot be empty.",
         )
 
+    message_text = append_channel_link(text=normalized_text, settings=settings)
+
     batch = PublicationBatch(
         batch_type=PublicationBatchType.NEWS_POST,
         status=PublicationBatchStatus.PROCESSING,
         created_by_telegram_user_id=telegram_context.user.id,
         source_item_id=item.id,
-        request_payload={"text": normalized_text},
+        request_payload={"text": normalized_text, "message_text": message_text},
     )
     job = PublicationJob(
         platform=PublicationPlatform.TELEGRAM,
@@ -130,7 +150,7 @@ def publish_news_item(
         result = send_telegram_message(
             bot_token=settings.telegram_bot_token,
             channel_id=settings.telegram_channel_id,
-            text=normalized_text,
+            text=message_text,
         )
     except TelegramPublishError as exc:
         job.status = PublicationJobStatus.FAILED

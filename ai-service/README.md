@@ -21,11 +21,14 @@
 - https://docs.ollama.com/api/introduction
 - https://docs.ollama.com/api/generate
 
+Для русского текста я перевёл дефолтную конфигурацию на `qwen2.5`. На официальной странице Ollama указано, что `Qwen2.5` поддерживает более 29 языков, включая русский:
+- https://ollama.com/library/qwen2.5
+
 Локально это можно поднять так:
 
 ```bash
 ollama serve
-ollama pull llama3.1:8b
+ollama pull qwen2.5:3b
 ```
 
 Дальше в `.env`:
@@ -33,9 +36,14 @@ ollama pull llama3.1:8b
 ```env
 AI_SERVICE_MODE=ollama
 AI_OLLAMA_BASE_URL=http://host.docker.internal:11434
-AI_OLLAMA_MODEL=llama3.1:8b
+AI_OLLAMA_MODEL=qwen2.5:3b
 AI_REQUEST_TIMEOUT_SECONDS=90
+AI_OLLAMA_KEEP_ALIVE=10m
+AI_OLLAMA_TEMPERATURE=0.35
+AI_OLLAMA_TOP_P=0.9
 ```
+
+Если качество покажется слабым, следующий шаг без переделки кода — просто переключить `AI_OLLAMA_MODEL` на `qwen2.5:7b`.
 
 `host.docker.internal` нужен потому, что backend у нас работает в Docker, а Ollama обычно крутится на хост-машине.
 

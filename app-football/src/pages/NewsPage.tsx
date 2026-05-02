@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
+  Languages,
   RefreshCw,
   Rss,
   Send
@@ -10,7 +11,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useNewsFeed } from "../features/news/useNewsFeed";
 import { formatDateTime } from "../lib/date";
-import { generateNewsPost, publishNewsPost } from "../lib/news-api";
+import { generateNewsPost, publishNewsPost, translateNewsItem } from "../lib/news-api";
 import { PublishStatus, SourceType } from "../types";
 
 type NewsFilter = "all" | SourceType;
@@ -35,9 +36,12 @@ const itemStatusLabels: Record<string, string> = {
   archived: "В архиве"
 };
 
-const aiModeLabels: Record<string, string> = {
+const modeLabels: Record<string, string> = {
   stub: "Шаблон",
-  ollama: "Ollama"
+  ollama: "Ollama",
+  google: "Google Translate",
+  original: "Оригинал",
+  empty: "Пусто"
 };
 
 function normalizeFilter(value: string | null): NewsFilter {
@@ -60,12 +64,15 @@ export function NewsPage() {
     status: feedStatus
   } = useNewsFeed();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   const [instructions, setInstructions] = useState<Record<string, string>>({});
   const [generationState, setGenerationState] = useState<Record<string, boolean>>({});
+  const [translationState, setTranslationState] = useState<Record<string, boolean>>({});
   const [publishState, setPublishState] = useState<Record<string, PublishStatus>>(
     {}
   );
   const [generationMode, setGenerationMode] = useState<Record<string, string>>({});
+  const [translationMode, setTranslationMode] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState("");
   const filter = normalizeFilter(searchParams.get("filter"));
 
@@ -85,15 +92,20 @@ export function NewsPage() {
   const currentDraft = selectedNews ? drafts[selectedNews.id] ?? "" : "";
   const currentInstruction = selectedNews
     ? instructions[selectedNews.id] ??
-      "Сделай короткий пост для Telegram на русском языке, без эмодзи, с акцентом на главный факт."
+      "Сделай краткий факт для Telegram: 1-2 предложения, без эмодзи, нейтрально, не в форме призыва, только главный факт."
     : "";
   const currentStatus: PublishStatus = selectedNews
     ? publishState[selectedNews.id] ??
       (selectedNews.status === "published" ? "published" : "idle")
     : "idle";
   const isGenerating = selectedNews ? generationState[selectedNews.id] ?? false : false;
+  const isTranslating = selectedNews ? translationState[selectedNews.id] ?? false : false;
   const currentGenerationMode = selectedNews
     ? generationMode[selectedNews.id] ?? null
+    : null;
+  const currentTranslation = selectedNews ? translations[selectedNews.id] ?? "" : "";
+  const currentTranslationMode = selectedNews
+    ? translationMode[selectedNews.id] ?? null
     : null;
 
   function setFilter(nextFilter: NewsFilter) {
@@ -170,6 +182,39 @@ export function NewsPage() {
       );
     } finally {
       setGenerationState((current) => ({
+        ...current,
+        [selectedNews.id]: false
+      }));
+    }
+  }
+
+  async function handleTranslate() {
+    if (!selectedNews) {
+      return;
+    }
+
+    setActionError("");
+    setTranslationState((current) => ({
+      ...current,
+      [selectedNews.id]: true
+    }));
+
+    try {
+      const result = await translateNewsItem(selectedNews.id);
+      setTranslations((current) => ({
+        ...current,
+        [selectedNews.id]: result.text
+      }));
+      setTranslationMode((current) => ({
+        ...current,
+        [selectedNews.id]: result.mode
+      }));
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Не удалось перевести материал."
+      );
+    } finally {
+      setTranslationState((current) => ({
         ...current,
         [selectedNews.id]: false
       }));
@@ -305,6 +350,17 @@ export function NewsPage() {
         <div className="detail-grid">
           <div className="stack-md">
             <div className="detail-block">
+              <span className="detail-block__label">Перевод для чтения</span>
+              {currentTranslation ? (
+                <p>{currentTranslation}</p>
+              ) : (
+                <p className="muted">
+                  Перевод ещё не запрошен. Нажми кнопку перевода, чтобы быстро понять
+                  смысл новости на русском.
+                </p>
+              )}
+            </div>
+            <div className="detail-block">
               <span className="detail-block__label">Оригинальный материал</span>
               <p>{selectedNews.rawText}</p>
             </div>
@@ -327,12 +383,22 @@ export function NewsPage() {
             <div className="compose-actions">
               <button
                 className="button button--secondary"
+                disabled={isTranslating}
+                onClick={handleTranslate}
+                type="button"
+              >
+                <Languages size={16} />
+                {isTranslating ? "Перевод..." : "Перевести на русский"}
+              </button>
+
+              <button
+                className="button button--secondary"
                 disabled={isGenerating}
                 onClick={handleGenerate}
                 type="button"
               >
                 <Bot size={16} />
-                {isGenerating ? "Генерация..." : "Сгенерировать текст"}
+                {isGenerating ? "Генерация..." : "Сделать краткий факт"}
               </button>
 
               <button
@@ -351,12 +417,17 @@ export function NewsPage() {
             {actionError ? <p className="error-text">{actionError}</p> : null}
             {currentGenerationMode ? (
               <p className="muted">
-                Режим AI: {aiModeLabels[currentGenerationMode] ?? currentGenerationMode}
+                Режим генерации: {modeLabels[currentGenerationMode] ?? currentGenerationMode}
+              </p>
+            ) : null}
+            {currentTranslationMode ? (
+              <p className="muted">
+                Режим перевода: {modeLabels[currentTranslationMode] ?? currentTranslationMode}
               </p>
             ) : null}
 
             <label className="stack-sm">
-              <span className="detail-block__label">Задание для AI</span>
+              <span className="detail-block__label">Задание для краткого факта</span>
               <textarea
                 className="textarea textarea--instruction"
                 onChange={(event) =>
@@ -365,13 +436,13 @@ export function NewsPage() {
                     [selectedNews.id]: event.target.value
                   }))
                 }
-                placeholder="Например: сделай короткий пост без эмодзи с акцентом на трансферный инсайд."
+                placeholder="Например: сделай очень короткий нейтральный факт без эмодзи, не в форме призыва, с акцентом на главный инсайд."
                 value={currentInstruction}
               />
             </label>
 
             <label className="stack-sm">
-              <span className="detail-block__label">Текст поста</span>
+              <span className="detail-block__label">Короткий факт / текст публикации</span>
               <textarea
                 className="textarea"
                 onChange={(event) =>
@@ -389,6 +460,10 @@ export function NewsPage() {
               <div className="status-panel__row">
                 <span>Канал Telegram</span>
                 <strong>Готов</strong>
+              </div>
+              <div className="status-panel__row">
+                <span>Ссылка на канал</span>
+                <strong>Добавится автоматически</strong>
               </div>
               <div className="status-panel__row">
                 <span>Текст поста</span>

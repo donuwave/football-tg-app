@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = "your_bot_token"
     telegram_channel_id: str = "@your_channel"
+    telegram_channel_url: str | None = None
     telegram_allowed_user_id: int = 123456789
     telegram_init_data_ttl_seconds: int = 86400
 
@@ -40,13 +41,20 @@ class Settings(BaseSettings):
     parser_interval_minutes: int = 120
     ai_service_mode: str = "stub"
     ai_ollama_base_url: str = "http://host.docker.internal:11434"
-    ai_ollama_model: str = "llama3.1:8b"
+    ai_ollama_model: str = "qwen2.5:3b"
     ai_request_timeout_seconds: int = 90
+    ai_ollama_keep_alive: str = "10m"
+    ai_ollama_temperature: float = 0.35
+    ai_ollama_top_p: float = 0.9
+    translation_service_mode: str = "google"
+    translation_target_language: str = "ru"
     ai_system_prompt: str = (
         "Ты редактор футбольного Telegram-канала. "
-        "Перепиши материал в виде готового поста на русском языке. "
+        "Сделай из новости короткий факт для Telegram-канала на русском языке. "
+        "Финальный ответ должен быть только на русском языке. "
+        "Если исходный материал на английском или другом языке, переведи смысл на русский. "
         "Пиши ясно, плотно и без воды. Не выдумывай факты. "
-        "Если фактов мало, сделай короткий пост. "
+        "Обычно это 1-2 предложения и один главный факт. "
         "Не добавляй вводные фразы вроде 'Вот пост' или 'Конечно'."
     )
 
