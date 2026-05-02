@@ -10,6 +10,7 @@ from app.core.security import TelegramValidationResult
 from app.db.models.enums import NewsSourceType
 from app.schemas.news import (
     NewsFeedResponse,
+    NewsGenerateRequest,
     NewsGenerateResponse,
     NewsItemResponse,
     NewsPublishRequest,
@@ -48,11 +49,17 @@ def get_news_item(
 @router.post("/{news_id}/generate-post", response_model=NewsGenerateResponse)
 def generate_news_item_post(
     news_id: UUID,
+    payload: NewsGenerateRequest,
     _: Annotated[TelegramValidationResult, Depends(require_allowed_telegram_user)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
     db: Annotated[Session, Depends(get_db)],
 ) -> NewsGenerateResponse:
     item = get_news_item_or_404(db=db, news_id=news_id)
-    return generate_news_post(item=item)
+    return generate_news_post(
+        item=item,
+        instruction=payload.instruction,
+        settings=settings,
+    )
 
 
 @router.post("/{news_id}/publish", response_model=NewsPublishResponse)

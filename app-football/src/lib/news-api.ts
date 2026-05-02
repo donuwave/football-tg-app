@@ -1,6 +1,5 @@
 import { NewsItem, NewsSource, SourceType } from "../types";
-import { apiBaseUrl, isDevAuthBypassEnabled } from "./config";
-import { getTelegramWebApp } from "./telegram";
+import { requestProtectedJson } from "./protected-api";
 
 interface BackendNewsSource {
   id: string;
@@ -31,6 +30,7 @@ interface BackendNewsFeedResponse {
 interface BackendGenerateNewsPostResponse {
   item_id: string;
   text: string;
+  mode: string;
 }
 
 interface BackendPublishNewsResponse {
@@ -50,6 +50,7 @@ export interface NewsFeed {
 export interface GenerateNewsPostResponse {
   itemId: string;
   text: string;
+  mode: string;
 }
 
 export interface PublishNewsResponse {
@@ -59,23 +60,6 @@ export interface PublishNewsResponse {
   status: string;
   platform: string;
   externalPublicationId: string | null;
-}
-
-export class NewsApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "NewsApiError";
-    this.status = status;
-  }
-}
-
-class MissingTelegramInitDataError extends Error {
-  constructor() {
-    super("Telegram initData is missing for authenticated API request.");
-    this.name = "MissingTelegramInitDataError";
-  }
 }
 
 function mapSource(source: BackendNewsSource): NewsSource {
@@ -103,64 +87,33 @@ function mapItem(item: BackendNewsItem): NewsItem {
   };
 }
 
-function buildAuthHeaders() {
-  const initData = getTelegramWebApp()?.initData?.trim() ?? "";
-
-  if (!initData) {
-    if (isDevAuthBypassEnabled) {
-      return {};
-    }
-
-    throw new MissingTelegramInitDataError();
-  }
-
-  return {
-    "X-Telegram-Init-Data": initData
-  };
-}
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!apiBaseUrl) {
-    throw new NewsApiError("VITE_API_BASE_URL is not configured.", 0);
-  }
-
-  const headers = new Headers(init?.headers);
-  for (const [key, value] of Object.entries(buildAuthHeaders())) {
-    headers.set(key, value);
-  }
-
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new NewsApiError(text || "Backend request failed.", response.status);
-  }
-
-  return (await response.json()) as T;
-}
-
 export async function fetchNewsFeed(): Promise<NewsFeed> {
-  const payload = await requestJson<BackendNewsFeedResponse>("/api/v1/news");
+  const payload = await requestProtectedJson<BackendNewsFeedResponse>("/api/v1/news");
   return {
     items: payload.items.map(mapItem),
     sources: payload.sources.map(mapSource)
   };
 }
 
-export async function generateNewsPost(newsId: string): Promise<GenerateNewsPostResponse> {
-  const payload = await requestJson<BackendGenerateNewsPostResponse>(
+export async function generateNewsPost(
+  newsId: string,
+  instruction: string
+): Promise<GenerateNewsPostResponse> {
+  const payload = await requestProtectedJson<BackendGenerateNewsPostResponse>(
     `/api/v1/news/${newsId}/generate-post`,
     {
-      method: "POST"
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ instruction })
     }
   );
 
   return {
     itemId: payload.item_id,
-    text: payload.text
+    text: payload.text,
+    mode: payload.mode
   };
 }
 
@@ -168,7 +121,7 @@ export async function publishNewsPost(
   newsId: string,
   text: string
 ): Promise<PublishNewsResponse> {
-  const payload = await requestJson<BackendPublishNewsResponse>(
+  const payload = await requestProtectedJson<BackendPublishNewsResponse>(
     `/api/v1/news/${newsId}/publish`,
     {
       method: "POST",

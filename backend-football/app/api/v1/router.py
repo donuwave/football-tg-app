@@ -3,8 +3,10 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.news import router as news_router
+from app.api.v1.endpoints.sources import router as sources_router
 
 router = APIRouter()
 router.include_router(health_router, tags=["health"])
 router.include_router(auth_router, prefix="/auth/telegram", tags=["auth"])
 router.include_router(news_router, prefix="/news", tags=["news"])
+router.include_router(sources_router, prefix="/sources", tags=["sources"])

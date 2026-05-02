@@ -1,4 +1,4 @@
-import { Clock3, Film, Home, Newspaper, ShieldCheck } from "lucide-react";
+import { Clock3, Home, Newspaper, ShieldCheck } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 
@@ -72,15 +72,6 @@ export function AppShell() {
         >
           <Newspaper size={18} />
           <span>Новости</span>
-        </NavLink>
-        <NavLink
-          className={({ isActive }) =>
-            `bottom-nav__item${isActive ? " bottom-nav__item--active" : ""}`
-          }
-          to="/rubric"
-        >
-          <Film size={18} />
-          <span>Рубрика</span>
         </NavLink>
       </nav>
     </div>

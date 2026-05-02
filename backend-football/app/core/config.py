@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     local_storage_path: str = "./storage"
     parser_interval_minutes: int = 120
     ai_service_mode: str = "stub"
+    ai_ollama_base_url: str = "http://host.docker.internal:11434"
+    ai_ollama_model: str = "llama3.1:8b"
+    ai_request_timeout_seconds: int = 90
+    ai_system_prompt: str = (
+        "Ты редактор футбольного Telegram-канала. "
+        "Перепиши материал в виде готового поста на русском языке. "
+        "Пиши ясно, плотно и без воды. Не выдумывай факты. "
+        "Если фактов мало, сделай короткий пост. "
+        "Не добавляй вводные фразы вроде 'Вот пост' или 'Конечно'."
+    )
 
     @property
     def cors_origins(self) -> list[str]:

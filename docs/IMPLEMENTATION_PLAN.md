@@ -1,7 +1,64 @@
 # Implementation Plan (MVP)
 
+## Статус по MVP сейчас
+
+### Уже закрыто
+1. Telegram Mini App auth:
+   - frontend получает `initData`,
+   - backend валидирует `initData`,
+   - доступ ограничен одним owner id.
+2. Frontend shell:
+   - `Home`,
+   - `Новости`,
+   - `Рубрика` как UI-экран.
+3. Backend skeleton:
+   - `FastAPI`,
+   - `/api/v1`,
+   - `health`,
+   - `docker compose`,
+   - `PostgreSQL`,
+   - `Redis`.
+4. Data layer:
+   - модели,
+   - initial migration,
+   - ограничения идемпотентности внутри source.
+5. News read/compose flow:
+   - `GET /api/v1/news`,
+   - `GET /api/v1/news/{id}`,
+   - `POST /api/v1/news/{id}/generate-post`,
+   - `POST /api/v1/news/{id}/publish`.
+6. Source registry + ingestion:
+   - source registry API,
+   - RSS adapter,
+   - ручной sync,
+   - scheduler раз в 2 часа.
+7. News owner UI:
+   - добавление RSS source,
+   - ручной sync из Mini App,
+   - pause/resume source,
+   - AI instruction field на карточке новости.
+
+### Осталось до MVP
+1. Реальная публикация новости:
+   - smoke test реальной публикации в канал,
+   - retry / error handling.
+2. Если нужен реальный local AI runtime вместо `stub`:
+   - поднять `Ollama`,
+   - подобрать модель,
+   - донастроить system prompt.
+3. `Рубрика` backend:
+   - multipart endpoint,
+   - upload / temp storage,
+   - Telegram + VK + YouTube publish flow.
+4. Frontend <-> backend для `Рубрики`.
+5. Publication status API.
+6. Cleanup / retention задачи для старых новостей и временных файлов.
+7. Публичный backend deploy контур под Mini App без временного tunnel.
+
 ## Этап 0. Уточнение требований
 **Цель:** зафиксировать продуктовые и технические решения до начала кода.
+
+**Статус:** завершён
 
 ### Что уже зафиксировано
 1. Базовый API префикс: `/api/v1`.
@@ -27,6 +84,8 @@
 
 ## Этап 1. Frontend shell на моках
 **Цель:** быстро собрать Telegram Mini App каркас и UX без зависимости от backend.
+
+**Статус:** завершён
 
 ### Задачи
 1. Инициализировать `app-football` на `React + Vite`.
@@ -54,6 +113,8 @@
 ## Этап 2. Backend skeleton
 **Цель:** поднять базовый backend-каркас и инфраструктуру приложения.
 
+**Статус:** завершён
+
 ### Задачи
 1. Инициализировать `backend-football` на `FastAPI`.
 2. Подключить `.env`.
@@ -73,6 +134,8 @@
 
 ## Этап 3. Data layer + миграции
 **Цель:** зафиксировать основную модель данных.
+
+**Статус:** частично завершён
 
 ### Задачи
 1. SQLAlchemy модели:
@@ -101,6 +164,8 @@
 ## Этап 4. Parser framework
 **Цель:** запустить ingestion pipeline под рост числа источников.
 
+**Статус:** завершён
+
 ### Задачи
 1. Общий parser interface.
 2. Реестр adapters по `source_type`.
@@ -119,6 +184,8 @@
 ## Этап 5. News API + AI stub
 **Цель:** закрыть backend flow для новости.
 
+**Статус:** частично завершён
+
 ### Задачи
 1. `GET /api/v1/news`
 2. `GET /api/v1/news/{id}`
@@ -126,7 +193,8 @@
 4. `POST /api/v1/news/{id}/publish`
 5. AI service abstraction.
 6. Stub-реализация шаблонной генерации.
-7. Celery task для AI-генерации.
+7. Local runtime режим через `Ollama`.
+8. Celery task для AI-генерации.
 
 ### Acceptance criteria
 1. Пользователь может получить список новостей.
@@ -137,6 +205,8 @@
 
 ## Этап 6. Telegram publisher для новостей
 **Цель:** сделать реальную публикацию новостного поста.
+
+**Статус:** частично завершён
 
 ### Задачи
 1. Сервис публикации в Telegram Bot API.
@@ -152,6 +222,8 @@
 
 ## Этап 7. Rubric pipeline
 **Цель:** реализовать ручную multi-platform публикацию.
+
+**Статус:** не начат
 
 ### Задачи
 1. `POST /api/v1/rubric/publish` (multipart).
@@ -174,13 +246,16 @@
 ## Этап 8. Интеграция frontend <-> backend
 **Цель:** заменить моки на реальные API-вызовы.
 
+**Статус:** частично завершён
+
 ### Задачи
 1. Подключить frontend к `auth/telegram/verify`.
 2. Подключить список новостей и детали.
 3. Подключить AI compose flow.
 4. Подключить news publish flow.
-5. Подключить rubric publish flow.
-6. Сделать UI ожидания и ошибок для batch status.
+5. Подключить owner UI для `sources`.
+6. Подключить rubric publish flow.
+7. Сделать UI ожидания и ошибок для batch status.
 
 ### Acceptance criteria
 1. Frontend проходит оба MVP-сценария через реальный backend.
@@ -190,6 +265,8 @@
 
 ## Этап 9. Security hardening
 **Цель:** закрыть базовые риски доступа и утечек.
+
+**Статус:** частично завершён
 
 ### Задачи
 1. Валидация Telegram `initData`.
@@ -207,6 +284,8 @@
 
 ## Этап 10. Локальный запуск и деплой-контур
 **Цель:** подготовить кодовую базу к запуску локально и к первому VPS-деплою.
+
+**Статус:** частично завершён
 
 ### Задачи
 1. Собрать рабочий `docker-compose` под backend, workers, postgres, redis и frontend.

@@ -7,6 +7,37 @@
 3. Публикует новость в Telegram прямо из Telegram Mini App.
 4. Создаёт отдельную `Рубрику` с медиа и текстами для Telegram, VK и YouTube.
 
+## 1.1 Текущий статус реализации
+На текущий момент реализована только часть MVP-контуров.
+
+### Уже сделано
+- Telegram Mini App frontend поднят и проходит реальную Telegram auth верификацию.
+- Backend на `FastAPI` работает с `PostgreSQL` и `Redis`.
+- Работают:
+  - `GET /api/v1/health`
+  - `POST /api/v1/auth/telegram/verify`
+  - `GET /api/v1/news`
+  - `GET /api/v1/news/{id}`
+  - `POST /api/v1/news/{id}/generate-post`
+  - `POST /api/v1/news/{id}/publish`
+- `GET /api/v1/sources`
+- `POST /api/v1/sources`
+- `PATCH /api/v1/sources/{id}`
+- `POST /api/v1/sources/{id}/sync`
+- RSS adapter пишет новости в `content_items`.
+- Scheduler ставит parser-задачи раз в 2 часа.
+- Новостной UI уже подключён к backend:
+  - есть owner-форма добавления RSS,
+  - есть ручной sync,
+  - есть поле задания для AI rewrite.
+
+### Ещё не сделано
+- Smoke test реальной публикации новости в production Telegram-канал.
+- Retry / error hardening для news publish flow.
+- Cleanup / retention для старых `content_items`.
+- Backend pipeline для `Рубрики`.
+- Batch status API для multi-platform публикаций.
+
 ## 2. Границы MVP
 ### Входит в MVP
 - Сбор новостей минимум из 1 RSS-источника с архитектурой под много источников и много типов.
@@ -20,7 +51,10 @@
   - `NewsList`
   - `NewsDetails / Compose`
   - `RubricComposer`
-- AI stub для шаблонной генерации текста по новости.
+- AI rewrite service для новости:
+  - `stub` по умолчанию,
+  - `ollama` как локальный runtime режим,
+  - пользовательское задание передаётся вместе с новостью.
 - Публикация новости в Telegram.
 - `Рубрика` с 4 пользовательскими полями:
   - видео для Telegram,
@@ -105,13 +139,12 @@
 2. Adapter получает данные источника и возвращает нормализованный список.
 3. Backend сохраняет новые записи в `content_items` без кросс-источниковой дедупликации.
 4. Пользователь открывает Mini App и видит общую новостную ленту.
-5. Пользователь открывает новость и нажимает `Сгенерировать текст`.
-6. Создаётся `ai_generation_job` и уходит в очередь `ai`.
-7. AI worker возвращает шаблонный Telegram-текст на русском.
-8. Пользователь редактирует текст на фронтенде.
-9. Пользователь нажимает `Опубликовать`.
-10. Создаётся publication batch с одной job на платформу `telegram`.
-11. Publisher worker публикует пост и сохраняет статус.
+5. Пользователь открывает новость и вводит задание для AI.
+6. Backend вызывает `AI rewrite service` и возвращает готовый текст поста.
+7. Пользователь редактирует текст на фронтенде.
+8. Пользователь нажимает `Опубликовать`.
+9. Создаётся publication batch с одной job на платформу `telegram`.
+10. Backend публикует пост и сохраняет статус.
 
 ### Сценарий B: Рубрика -> Telegram + VK + YouTube publish
 1. Пользователь открывает экран `Рубрика`.
@@ -208,13 +241,15 @@ Retention policy (MVP):
 
 ### News
 - `GET /api/v1/news`
-  - filters: `source_id`, `page`, `page_size`
+  - current implementation: `source_type`, `limit`
+  - target extension later: pagination and richer filters
 - `GET /api/v1/news/{id}`
 - `POST /api/v1/news/{id}/generate-post`
-  - creates AI job and returns generated text
+  - input: `instruction`
+  - current implementation: synchronous rewrite через `stub` или `ollama`
 - `POST /api/v1/news/{id}/publish`
   - input: final text chosen by user
-  - creates `publication_batch` for Telegram
+  - current implementation: creates `publication_batch` for Telegram and calls Telegram Bot API directly
 
 ### Rubric
 - `POST /api/v1/rubric/publish`

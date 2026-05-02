@@ -29,9 +29,60 @@
 - Видео не хранится как долговременный медиакаталог: используется временная рабочая директория для upload/processing/publish pipeline.
 
 ## Текущий статус репозитория
-Сейчас репозиторий находится в стадии согласования архитектуры и UX. В нём уже зафиксированы продуктовые решения и структура сервисов, но runnable-код ещё не собран.
+Репозиторий уже перешёл из стадии согласования в стадию рабочей реализации. Базовый runnable-контур собран локально.
 
-`docker-compose.yml` в корне отражает целевую топологию сервисов, а не готовую к запуску инсталляцию.
+### Уже реализовано
+- `app-football/`:
+  - Telegram Mini App shell на `React + Vite`,
+  - Telegram WebApp auth flow,
+  - главный экран,
+  - экран `Новости`,
+  - owner UI для RSS-источников,
+  - поле задания для AI rewrite в карточке новости.
+- `backend-football/`:
+  - `FastAPI` backend с `/api/v1`,
+  - PostgreSQL + Redis в `docker compose`,
+  - официальная валидация Telegram `initData`,
+  - ограничение доступа по одному `TELEGRAM_ALLOWED_USER_ID`,
+  - `GET /api/v1/health`,
+  - `GET /api/v1/news`,
+  - `GET /api/v1/news/{id}`,
+  - `POST /api/v1/news/{id}/generate-post`,
+  - `POST /api/v1/news/{id}/publish`,
+  - `GET /api/v1/sources`,
+  - `POST /api/v1/sources`,
+  - `PATCH /api/v1/sources/{id}`,
+  - `POST /api/v1/sources/{id}/sync`,
+  - RSS adapter,
+  - Celery Beat scheduler раз в 2 часа,
+  - AI rewrite service:
+    - `stub` по умолчанию,
+    - `ollama` как локальный runtime режим.
+
+### Важное текущее ограничение
+- Автосид тестовых новостей убран.
+- Лента пустая, пока ты не добавишь реальные RSS-источники через UI или API.
+- Реальную публикацию новости в твой Telegram-канал я намеренно не дёргал автоматически.
+- `Рубрика` ещё не подключена к backend.
+
+## Что осталось до MVP
+1. Довести до боевого состояния news publish flow:
+   - smoke test реальной публикации в Telegram,
+   - обработка retry / platform errors.
+2. Если нужен не `stub`, а реальная локальная генерация:
+   - поднять `Ollama`,
+   - переключить `AI_SERVICE_MODE=ollama`,
+   - подобрать модель и системный prompt.
+3. Реализовать retention / cleanup:
+   - удаление старых `content_items`,
+   - cleanup временных файлов.
+4. Реализовать backend для `Рубрики`:
+   - multipart upload,
+   - временное хранение файлов,
+   - pipeline публикации в Telegram, VK и YouTube.
+5. Подключить экран `Рубрика` к реальному backend.
+6. Добавить batch status endpoint для multi-platform публикаций.
+7. Завершить локальный-to-prod деплой-контур backend с публичным HTTPS URL.
 
 ## Структура
 - `app-football/` — frontend Telegram Mini App

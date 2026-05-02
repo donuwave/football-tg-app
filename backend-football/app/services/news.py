@@ -27,6 +27,7 @@ from app.schemas.news import (
     NewsPublishResponse,
     NewsSourceResponse,
 )
+from app.services.ai import AIRewriteError, rewrite_news_post
 from app.services.telegram import TelegramPublishError, send_telegram_message
 
 
@@ -72,31 +73,25 @@ def get_news_item_or_404(*, db: Session, news_id: UUID) -> ContentItem:
     return item
 
 
-def build_generated_news_post(item: ContentItem) -> str:
-    lead = item.title.strip().rstrip(".")
-    summary = (item.excerpt or item.raw_text).strip()
-    summary = " ".join(summary.split())
-    if len(summary) > 220:
-        summary = f"{summary[:217].rstrip()}..."
+def generate_news_post(
+    *,
+    item: ContentItem,
+    instruction: str | None,
+    settings: Settings,
+) -> NewsGenerateResponse:
+    try:
+        result = rewrite_news_post(
+            item=item,
+            instruction=instruction,
+            settings=settings,
+        )
+    except AIRewriteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
 
-    source_label = (
-        item.source.external_ref or item.source.name if item.source else "source"
-    )
-    published_hint = ""
-    if item.published_at is not None:
-        published_hint = item.published_at.astimezone(UTC).strftime("%d.%m %H:%M UTC")
-
-    lines = [lead, "", summary]
-    if published_hint:
-        lines.extend(["", f"Источник: {source_label} • {published_hint}"])
-    else:
-        lines.extend(["", f"Источник: {source_label}"])
-
-    return "\n".join(lines)
-
-
-def generate_news_post(*, item: ContentItem) -> NewsGenerateResponse:
-    return NewsGenerateResponse(item_id=item.id, text=build_generated_news_post(item))
+    return NewsGenerateResponse(item_id=item.id, text=result.text, mode=result.mode)
 
 
 def publish_news_item(

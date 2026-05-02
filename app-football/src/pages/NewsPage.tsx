@@ -1,4 +1,4 @@
-import { Bot, CheckCircle2, Rss, Send } from "lucide-react";
+import { Bot, CheckCircle2, RefreshCw, Rss, Send } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useNewsFeed } from "../features/news/useNewsFeed";
@@ -18,13 +18,21 @@ const sourceTypeLabels: Record<NewsFilter, string> = {
 export function NewsPage() {
   const { newsId } = useParams();
   const navigate = useNavigate();
-  const { errorMessage, items, patchItem, status: feedStatus } = useNewsFeed();
+  const {
+    errorMessage,
+    items,
+    patchItem,
+    refresh,
+    status: feedStatus
+  } = useNewsFeed();
   const [filter, setFilter] = useState<NewsFilter>("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [instructions, setInstructions] = useState<Record<string, string>>({});
   const [generationState, setGenerationState] = useState<Record<string, boolean>>({});
   const [publishState, setPublishState] = useState<Record<string, PublishStatus>>(
     {}
   );
+  const [generationMode, setGenerationMode] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState("");
 
   const filteredNews = useMemo(() => {
@@ -79,10 +87,14 @@ export function NewsPage() {
 
   const selectedSource = selectedNews.source;
   const currentDraft = drafts[selectedNews.id] ?? "";
+  const currentInstruction =
+    instructions[selectedNews.id] ??
+    "Сделай короткий пост для Telegram-канала: 2-4 абзаца, без эмодзи, с сильным первым предложением и аккуратным завершением.";
   const currentStatus =
     publishState[selectedNews.id] ??
     (selectedNews.status === "published" ? "published" : "idle");
   const isGenerating = generationState[selectedNews.id] ?? false;
+  const currentGenerationMode = generationMode[selectedNews.id] ?? null;
 
   async function handlePublish() {
     if (!currentDraft.trim()) {
@@ -119,10 +131,14 @@ export function NewsPage() {
     }));
 
     try {
-      const result = await generateNewsPost(selectedNews.id);
+      const result = await generateNewsPost(selectedNews.id, currentInstruction);
       setDrafts((current) => ({
         ...current,
         [selectedNews.id]: result.text
+      }));
+      setGenerationMode((current) => ({
+        ...current,
+        [selectedNews.id]: result.mode
       }));
     } catch (error) {
       setActionError(
@@ -144,17 +160,23 @@ export function NewsPage() {
             <h2 className="section-title">Лента</h2>
             <p className="muted">{filteredNews.length} материалов в текущем срезе</p>
           </div>
-          <div className="chip-group">
-            {(Object.keys(sourceTypeLabels) as NewsFilter[]).map((key) => (
-              <button
-                key={key}
-                className={`chip-button${filter === key ? " chip-button--active" : ""}`}
-                onClick={() => setFilter(key)}
-                type="button"
-              >
-                {sourceTypeLabels[key]}
-              </button>
-            ))}
+          <div className="control-cluster">
+            <div className="chip-group">
+              {(Object.keys(sourceTypeLabels) as NewsFilter[]).map((key) => (
+                <button
+                  key={key}
+                  className={`chip-button${filter === key ? " chip-button--active" : ""}`}
+                  onClick={() => setFilter(key)}
+                  type="button"
+                >
+                  {sourceTypeLabels[key]}
+                </button>
+              ))}
+            </div>
+            <button className="button button--secondary" onClick={() => void refresh()} type="button">
+              <RefreshCw size={16} />
+              Обновить
+            </button>
           </div>
         </div>
 
@@ -244,6 +266,24 @@ export function NewsPage() {
             </div>
 
             {actionError ? <p className="error-text">{actionError}</p> : null}
+            {currentGenerationMode ? (
+              <p className="muted">provider: {currentGenerationMode}</p>
+            ) : null}
+
+            <label className="stack-sm">
+              <span className="detail-block__label">Задание для AI</span>
+              <textarea
+                className="textarea textarea--instruction"
+                onChange={(event) =>
+                  setInstructions((current) => ({
+                    ...current,
+                    [selectedNews.id]: event.target.value
+                  }))
+                }
+                placeholder="Например: сделай короткий пост, без эмодзи, с акцентом на трансферный инсайд."
+                value={currentInstruction}
+              />
+            </label>
 
             <label className="stack-sm">
               <span className="detail-block__label">Текст поста</span>

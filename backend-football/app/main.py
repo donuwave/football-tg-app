@@ -6,17 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.db.session import SessionLocal
-from app.services.dev_seed import seed_dev_news_feed
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings = get_settings()
     Path(settings.local_storage_path).mkdir(parents=True, exist_ok=True)
-    if settings.app_env != "prod":
-        with SessionLocal() as session:
-            seed_dev_news_feed(session)
     yield
 
 

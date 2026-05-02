@@ -2,6 +2,15 @@
 
 Документ описывает целевую схему деплоя MVP после появления кода. Модель остаётся single-owner: один владелец, один Telegram-канал, один VPS.
 
+## 0. Текущий практический статус
+- Frontend уже может жить отдельно, например на `Vercel`.
+- Для полноценной Telegram Mini App работы backend тоже должен быть публично доступен по HTTPS.
+- На этапе локальной разработки допустим режим:
+  - frontend публичный,
+  - backend локальный,
+  - внешний доступ к backend через временный tunnel.
+- Для завершённого MVP лучше перейти на постоянный публичный backend URL, а не на временный tunnel.
+
 ## 1. Целевая схема
 - 1 сервер (VPS)
 - 1 домен, например `tg-football.yourdomain.com`
@@ -12,6 +21,7 @@
   - `postgres`
   - `redis`
   - `parser-worker`
+  - `scheduler`
   - `ai-worker`
   - `publisher-worker`
 
@@ -50,6 +60,11 @@
 - `YOUTUBE_CHANNEL_ID`
 - `LOCAL_STORAGE_PATH`
 - `PARSER_INTERVAL_MINUTES`
+- `AI_SERVICE_MODE`
+- `AI_OLLAMA_BASE_URL`
+- `AI_OLLAMA_MODEL`
+- `AI_REQUEST_TIMEOUT_SECONDS`
+- `AI_SYSTEM_PROMPT`
 
 Примечания:
 - `LOCAL_STORAGE_PATH` используется как временная рабочая директория, а не как долговременное media storage.

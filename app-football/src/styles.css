@@ -168,7 +168,7 @@ button:disabled {
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border-top: 1px solid var(--border);
   background: rgba(21, 25, 29, 0.96);
   backdrop-filter: blur(14px);
@@ -294,6 +294,10 @@ button:disabled {
   gap: 16px;
 }
 
+.tile-grid--two {
+  grid-template-columns: 1fr;
+}
+
 .feature-tile {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -304,6 +308,12 @@ button:disabled {
   gap: 14px;
   align-items: flex-start;
   box-shadow: var(--shadow);
+}
+
+.feature-tile--button {
+  width: 100%;
+  text-align: left;
+  color: inherit;
 }
 
 .feature-tile__icon {
@@ -353,6 +363,42 @@ button:disabled {
   gap: 12px;
 }
 
+.source-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.source-form__actions {
+  display: flex;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field__label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
+  padding: 14px;
+}
+
+.input {
+  min-height: 42px;
+}
+
 .source-row {
   min-height: 64px;
   border: 1px solid var(--border);
@@ -372,6 +418,40 @@ button:disabled {
   gap: 12px;
 }
 
+.source-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.source-card__main,
+.source-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.source-card__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-card__url {
+  overflow-wrap: anywhere;
+}
+
+.source-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .news-layout {
   display: grid;
   grid-template-columns: 1fr;
@@ -382,6 +462,13 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.control-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .chip-button {
@@ -498,15 +585,14 @@ button:disabled {
   width: 100%;
   min-height: 180px;
   resize: vertical;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--panel-soft);
-  color: var(--text);
-  padding: 14px;
 }
 
 .textarea--large {
   min-height: 220px;
+}
+
+.textarea--instruction {
+  min-height: 120px;
 }
 
 .status-panel {
@@ -552,6 +638,11 @@ button:disabled {
   color: var(--danger);
 }
 
+.success-text {
+  margin: 0;
+  color: #b2efd0;
+}
+
 .spin {
   animation: spin 0.9s linear infinite;
 }
@@ -576,9 +667,19 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .source-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: end;
+  }
+
   .rubric-grid,
   .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .source-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 }
 

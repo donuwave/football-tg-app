@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from celery import Celery
 
 from app.core.config import get_settings
@@ -20,6 +22,13 @@ celery_app.conf.update(
     task_default_queue="default",
     task_track_started=True,
     worker_send_task_events=True,
+    beat_schedule={
+        "sync-active-news-sources": {
+            "task": "parser.enqueue_active_sources",
+            "schedule": timedelta(minutes=settings.parser_interval_minutes),
+            "options": {"queue": "parser"},
+        }
+    },
 )
 
 # Import placeholder task modules so workers always register queue-specific tasks.

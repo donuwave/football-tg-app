@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from app.db.models.content_item import ContentItem
@@ -68,6 +68,11 @@ class NewsFeedResponse(BaseModel):
 class NewsGenerateResponse(BaseModel):
     item_id: UUID
     text: str
+    mode: str
+
+
+class NewsGenerateRequest(BaseModel):
+    instruction: str | None = Field(default=None, max_length=4000)
 
 
 class NewsPublishRequest(BaseModel):

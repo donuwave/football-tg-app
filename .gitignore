@@ -5,6 +5,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.db
+celerybeat-schedule
+backend-football/celerybeat-schedule
 
 app-football/node_modules/
 app-football/dist/
